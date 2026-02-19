@@ -1,5 +1,9 @@
 .ipynb_checkpoints/
 .jupyter/desktop-workspaces/
+.json/
+__pycache__/
 
 .ipynb_checkpoints\
 .jupyter\desktop-workspaces\
+.json\
+__pycache__\
