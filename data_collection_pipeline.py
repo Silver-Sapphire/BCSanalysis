@@ -37,8 +37,7 @@ DATE = 3
 
 def main(base_url, event_info):
     """
-    TODO CLEAN UP RANK AND WINS
-    COMBINE WITH WRANGING FOR FUTURE EASE OF USE
+    
     """
     # Part 1: Get basic info and decklog from event page ~~~~~~~~~~~~~~~~~~~~~~
     url = f'{base_url}{event_info[URL_EXT]}'
@@ -90,13 +89,12 @@ def main(base_url, event_info):
     # Maybe we can set up a while loop to keep trying till we finish?
     # Go to each page
     DECKLOG_BASE_URL = "https://decklog-en.bushiroad.com/view/" 
-    todo = len(df)
     code = "None Added"
     for i, row in df.iterrows():
         # I've seen a few valid logs fail to make it through,
         # They usually just need a second try.
         tries = 0
-        while tries < 2:
+        while tries < 3:
             tries += 1
             try:
                 if df.at[i, 'deck'] != None: continue # skip completed decks on re-run
@@ -114,10 +112,13 @@ def main(base_url, event_info):
                 df.at[i, 'boss'] = boss
                 
             except Exception as e:
-                todo = df.deck.isnull().sum()
-                print(f'null decks: {todo}, \ncode: {code}','\n- - - - - - - - - - -')
+                print(f"faild on deck {code} on try {tries}")
+                # todo = df.deck.isnull().sum()
+                # print(f'null decks: {todo}, \ncode: {code}','\n- - - - - - - - - - -')
 
     # clean-up
+    print(df.deck.isnull().sum(), " empty decks collected")
+    df.drop(columns=['index'], inplace=True, errors='ignore')
     driver.quit()
 
     # Part 2.5 - Remove rows with no deck ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,7 +133,6 @@ def main(base_url, event_info):
     cluster_address = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
 
     client = MongoClient(f'mongodb+srv://{username}:{password}@{cluster_address}')
-    df.drop(columns=['index'], inplace=True)
 
     # seperate db
     sdb = client['JSONproto']
