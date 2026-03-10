@@ -1,29 +1,43 @@
 # get_table_from_db
 
+"""
+Dev Notes:
+
+I don't like how each command connects, does it's 'thing', then closes.
+
+If they all do the first and last thing, can we make some way of passing in
+'the thing'?
+"""
+
 import pandas as pd
 from pymongo import MongoClient
 
 
-# Connect to MongoDB
-#TODO FIX SECURITY ISSUE
-def get_table_from_db(database, table):
-    """
-    Returns an entire table from our database as a data frame.
-    """
-    username = 'sjmichael17_db_user'
-    password = 'rVtL43eBjseB5XkS' # plz don't hack me bro ;-;
-    cluster_address = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
+#TODO FIX SECURITY ISSUES
+USERNAME = 'sjmichael17_db_user'
+PASSWORD = 'rVtL43eBjseB5XkS' # plz don't hack me bro ;-;
+CLUSER_ADDRESS = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
 
-    client = MongoClient(f'mongodb+srv://{username}:{password}@{cluster_address}')
 
+def connect_to_db(database, table) -> tuple[MongoClient, None]:
+    """
+    Returns a client connection to close later, and a target table from our db.
+    """
+    client = MongoClient(f'mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSER_ADDRESS}')
     db = client[database]
     collection = db[table]
 
-    full_df= pd.DataFrame(collection.find({}))
+    return client, collection
 
-    client.close()
 
-    return full_df
+
+def get_table(database, table):
+    """
+    Returns an entire table from our database as a data frame.
+    """
+
+    return get_answer_from_table(database, table, query={})
+
 
 
 def get_answer_from_table(database, table, query):
@@ -33,17 +47,68 @@ def get_answer_from_table(database, table, query):
     ex: {'boss': 'Sugary and Scary Land, Heartluru'}
     ex. {}
     """
-    username = 'sjmichael17_db_user'
-    password = 'rVtL43eBjseB5XkS' # plz don't hack me bro ;-;
-    cluster_address = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
-
-    client = MongoClient(f'mongodb+srv://{username}:{password}@{cluster_address}')
-
-    db = client[database]
-    collection = db[table]
+    client, collection = connect_to_db(database, table)
 
     full_df= pd.DataFrame(collection.find(query))
 
     client.close()
-
     return full_df
+
+
+
+def insert_one_into_table(database, table, payload):
+    """
+    
+    """
+    client, collection = connect_to_db(database, table)
+
+    collection.insert_one(payload)
+
+    client.close()
+    return None
+
+
+
+def insert_many_into_table(database, table, payload):
+    return insert_into_table(database, table, payload)
+
+
+
+def insert_into_table(database, table, payload):
+    """
+    aka insert many into table
+    """
+    client, collection = connect_to_db(database, table)
+
+    collection.insert_many(payload)
+
+    client.close()
+    return None
+
+
+
+def overwrite_table(database, table, payload):
+    """
+    
+    """
+    client, collection = connect_to_db(database, table)
+
+    collection.drop()
+    collection.insert_man(payload)
+
+    client.close()
+    return None
+
+
+
+def update_table(database, table, payload):
+    """
+    
+    """
+    client, collection = connect_to_db(database, table)
+
+    collection.update_many(payload)
+
+    client.close()
+    return None
+

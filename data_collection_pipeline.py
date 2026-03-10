@@ -122,27 +122,22 @@ def main(base_url, event_info):
     driver.quit()
 
     # Part 2.5 - Remove rows with no deck ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # df = df[~df.deck.isnull()]
+    df = df[~df.deck.isnull()]
 
     # Part 3: Save Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # for posterity, we'll save the data to two tables;
     # one for just this event, and one for all events.
-    # Connect to MongoDB
-    username = 'sjmichael17_db_user'
-    password = 'rVtL43eBjseB5XkS' # plz don't hack me bro ;-;
-    cluster_address = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
-
-    client = MongoClient(f'mongodb+srv://{username}:{password}@{cluster_address}')
-
     # seperate db
-    sdb = client['JSONproto']
-    scollection = sdb[event_info[NAME]]
-    scollection.insert_many(df.to_dict(orient='records'))
+    db = 'JSONproto'
+    table = event_info[NAME]
+    payload = df.to_dict(orient='records')
+    db_operations.overwrite_table(database=db, table=table, payload=payload)
 
     # main db
-    mdb = client['main_table']
-    mcollection = mdb['test']
-    mcollection.insert_many(df.to_dict(orient='records'))
+    db = 'main_table'
+    table = 'all_events'
+    payload = df.to_dict(orient='records')
+    db_operations.insert_into_table(database=db, table=table, payload=payload)
 
     # Save as Json for testing 
     # from os import path
@@ -220,11 +215,15 @@ def decklogToDict(soup):
         if not decks[deck]: continue
         for card in decks[deck]:
             spans = card.find_all('span')
+            #########refactor point #############
             namespan= str(spans[0])
-            index1 = namespan.find(' : ') + 3 #trim whitespace
-            index2 = namespan.find('"></span>')
-            
-            card_name = namespan[index1:index2]
+            start = 'title="'
+            end = '"></span>'
+            ststart = namespan.find(start) + len(start) #trim whitespace
+            stend = namespan.find(end)    
+            card_name_and_set_id = namespan[ststart:stend]       
+            card_name = card_name_and_set_id
+            #####################################
             quant = int(spans[1].text)
         
             if card_name in deckDict[deck]:

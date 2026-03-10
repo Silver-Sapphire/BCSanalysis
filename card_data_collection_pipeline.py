@@ -1,6 +1,10 @@
 
 import requests
 
+
+import db_operations
+
+
 from bs4 import BeautifulSoup as Soup
 from pymongo import MongoClient
 
@@ -14,7 +18,9 @@ def add_card_info_to_db(set_num: str) -> dict[str|int]:
 
         data_entry = _exctract_info_from_bushi_site(html_text)
 
-        _save_data_to_db(data_entry)
+        db_operations.insert_one_into_table('main_table',
+                                            TODO,
+                                            data_entry)
 
         return data_entry
 
@@ -119,19 +125,3 @@ def _exctract_info_from_bushi_site(seperated_soup: list[list[str]]) -> dict:
     data_entry['illust'] = test[4][3]
 
     return data_entry
-
-
-def _save_data_to_db(prepared_data: dict) -> None:
-    """Given our data is ready to be put into the dabase, simply add it"""
-    username = 'sjmichael17_db_user'
-    password = 'rVtL43eBjseB5XkS' # plz don't hack me bro ;-;
-    cluster_address = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
-
-    client = MongoClient(f'mongodb+srv://{username}:{password}@{cluster_address}')
-
-    db = client['card_data_base']
-    collection = db['standard']
-    collection.insert_one(prepared_data)
-
-    client.close()
-    return None
