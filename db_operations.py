@@ -56,6 +56,17 @@ def get_answer_from_table(database, table, query):
 
 
 
+def find_first_in_table(database, table, query):
+    client, collection = connect_to_db(database, table)
+
+    item_dict= collection.find_one(query)
+
+    client.close()
+    return item_dict
+
+
+
+
 def insert_one_into_table(database, table, payload):
     """
     

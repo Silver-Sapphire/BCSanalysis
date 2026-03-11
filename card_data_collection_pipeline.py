@@ -6,30 +6,32 @@ import db_operations
 
 
 from bs4 import BeautifulSoup as Soup
-from pymongo import MongoClient
+
 
 BASE_URL = 'https://en.cf-vanguard.com/cardlist/?cardno='
+
 
 def add_card_info_to_db(set_num: str) -> dict[str|int]:
     """Given a card name, add its information to a central data base"""
 
     try:
-        html_text = _get_card_info_from_bushi_site(set_num)
+        html_text = get_card_info_from_bushi_site(set_num)
 
-        data_entry = _exctract_info_from_bushi_site(html_text)
+        data_entry = extract_data_from_bushi_site(html_text)
 
         db_operations.insert_one_into_table('main_table',
-                                            TODO,
+                                            'card_data',
                                             data_entry)
 
         return data_entry
 
     except Exception as something_went_wrong:
-        print(something_went_wrong)
-        return None
+        print(f'Error during data collection of {set_num}: ', something_went_wrong)
+        raise LookupError
 
 
-def _get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
+
+def get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
     """Given a name, and maybe decklog, retrieve the text of the official webpage with it's information
     
     The wepbage contains an element, 'data', which has all the informatin about the card for the URL.
@@ -62,66 +64,78 @@ def _get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
     return data
 
 
-def _exctract_info_from_bushi_site(seperated_soup: list[list[str]]) -> dict:
-    """Given the text from a card's bushi site page, return the information we want in our database
-    
-    We hit a few snags, due to the combinations of order, trigger, and unit atributes that can cause
-    some headache.
 
-    For now, Order type (Music, Codex, Fox Art, Etc.) are placed in the 'race' section,
-    and orders with no type just have '-' as their race. We can wrange these issues later.
-    At least we have the data.
-    """
-
+def extract_data_from_bushi_site(html):
     data_entry = dict()
     test = []
-    for i, item in enumerate(seperated_soup):
-        if i == 3: test.append(item) # We want to preserve line breaks in flavor text?
+        
+    for i, item in enumerate(html):
+        if i == 2|3: test.append(item) # We want to preserve line breaks in flavor text?
         else: test.append(item.split('\n'))
 
     card_type = test[1][0]
 
     data_entry['name'] = test[0][0]
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~Section 1~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Dual nation cards are longer than expected, so we'll fit them into our zone here
+    if (len(test[1]) == 8 and "Order" in card_type and "Regalis" not in test[1][7])\
+    or (len(test[1]) == 9 and "Normal Unit" == card_type)\
+    or (len(test[1]) == 10 and "Trigger Unit" == card_type):
+        second_nation = test[1].pop(2)
+        test[1][1] = test[1][1] + ' / ' + second_nation
+
     data_entry['type'] = card_type
     data_entry['nation'] = test[1][1]
     data_entry['race'] = test[1][2]
-    data_entry['grade'] = int(test[1][3].split(' ')[1])
-    # ~~~~~~~~~~~~~~~~~~   UNIT / ORDER / TRIGGER LOGIC ~~~~~~~~~~~~~~~~~~~~~~~
+    
+    # Crests, Units, and orders each have a different set of attributes which need TLC
+    if "Crest" in card_type:
+        data_entry['grade'] = None
+    else:
+        data_entry['grade'] = int(test[1][3].split(' ')[1])
+
     if "Unit" in card_type:
         data_entry['power'] = int(test[1][4].split(' ')[1])
         data_entry['crit'] = int(test[1][5].split(' ')[1])
+
         # Grade 3's have an empty string when checking for shield, so this fixes that bug
         shield = test[1][6].split(' ')[1]
-        if shield == '':
-            data_entry['shield'] = 0
+        if shield == '' or '-' == shield:
+            data_entry['shield'] = None
         else:
             data_entry['shield'] = int(shield)
 
-        data_entry['ability'] = test[1][7]
+        data_entry['ability'] = test[1][7]    
 
-    else:
-        data_entry['power'] = "None"
-        data_entry['crit'] = "None"
-        data_entry['shield'] = "None"
-        data_entry['ability'] = "None"
+    else: # If "Order" in card_type
+        data_entry['power'] =   None
+        data_entry['crit'] =    None
+        data_entry['shield'] =  None
+        data_entry['ability'] = None
 
     if "Trigger" in card_type:
         data_entry['trigger'] = test[1][8]
     else:
-        data_entry['trigger'] = "None"
+        data_entry['trigger'] = None
 
-    data_entry['effect'] = test[2][0]
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #~~~~~~~~~~~~~~~~~~~~Section 2~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if len(test) == 3:
+        test.insert(2, '-')
+    data_entry['effect'] = test[2]
 
-    # Some cards don't have flavor text, and this 'Magic Number Hack' inserts an empty string
+    #~~~~~~~~~~~~~~~~~~~~Section 3~~~~~~~~~~~~~~~~~~~~~~~~~
+    # If there's no flavor text, add an empty string
     if len(test) == 4:
         test.insert(3, '')
+
     data_entry['flavor'] = test[3]
 
+    #~~~~~~~~~~~~~~~~~~~~Section 4~~~~~~~~~~~~~~~~~~~~~~~
     data_entry['format'] = test[4][0]
     data_entry['id'] = test[4][1]
     data_entry['rarity'] = test[4][2]
-    data_entry['illust'] = test[4][3]
+    data_entry['artist'] = test[4][3]
 
     return data_entry
