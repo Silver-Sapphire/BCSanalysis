@@ -94,20 +94,20 @@ def overwrite_table(database, table, payload):
     client, collection = connect_to_db(database, table)
 
     collection.drop()
-    collection.insert_man(payload)
+    collection.insert_many(payload)
 
     client.close()
     return None
 
 
 
-def update_table(database, table, payload):
+def update_table(database, table, updates):
     """
     
     """
     client, collection = connect_to_db(database, table)
 
-    collection.update_many(payload)
+    collection.bulk_write(updates)
 
     client.close()
     return None

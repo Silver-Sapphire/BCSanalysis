@@ -1,7 +1,13 @@
 
-import pandas as pd
 
 import requests
+
+
+import db_operations
+
+
+import pandas as pd
+
 from bs4 import BeautifulSoup as Soup
 
 from selenium import webdriver
@@ -112,7 +118,8 @@ def main(base_url, event_info):
                 df.at[i, 'boss'] = boss
                 
             except Exception as e:
-                print(f"faild on deck {code} on try {tries}")
+                if tries == 3:
+                    print(f"faild on deck {code} on try {tries}")
                 # todo = df.deck.isnull().sum()
                 # print(f'null decks: {todo}, \ncode: {code}','\n- - - - - - - - - - -')
 
@@ -144,7 +151,6 @@ def main(base_url, event_info):
     # file_path = path.join('.json', f'{location_info[NEWNAME]}.json')
     # df.to_json(file_path, orient='records')
 
-    client.close()
     return None
 
 
