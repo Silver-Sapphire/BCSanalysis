@@ -123,3 +123,15 @@ def update_table(database, table, updates):
     client.close()
     return None
 
+
+
+def aggregate_table(database, table, aggregate):
+    """
+    
+    """
+    client, collection = connect_to_db(database, table)
+
+    col = collection.aggregate(aggregate)
+
+    client.close()
+    return col

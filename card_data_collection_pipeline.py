@@ -19,9 +19,9 @@ def add_card_info_to_db(set_num: str) -> dict[str|int]:
 
         data_entry = extract_data_from_bushi_site(html_text)
 
-        db_operations.insert_one_into_table('main_table',
-                                            'card_data',
-                                            data_entry)
+        # db_operations.insert_one_into_table('main_table',
+        #                                     'card_data',
+        #                                     data_entry)
 
         return data_entry
 
@@ -53,38 +53,40 @@ def get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
     url = BASE_URL + str(set_code)
     response = requests.get(url)
     soup=Soup(response.text, 'html.parser')
-    data_element = soup.find(attrs={'class':'data'})
+    data = soup.find(attrs={'class':'data'})
 
-    data = []
-    for child in data_element:
-        text = child.text
-        if text.strip() != '':
-            data.append(text.strip())
+    name = data.find(attrs={'class':'name'}).text.strip()
+    effect = data.find(attrs={'class':'effect'}).text.strip()
+    flavor = data.find(attrs={'class':'flavor'}).text.strip()
+    stats_line, bottom_line = data.find_all(attrs={'class':'text-list'})
+    bottom_line = bottom_line.text.strip().split('\n')
+    split_stats = stats_line.text.strip().split('\n')
 
-    return data
+    if len(stats_line.find_all(attrs={'class':'nation'})) == 2:
+        second_nation = split_stats.pop(2)
+        split_stats[1] = split_stats[1] + ' / ' + second_nation
 
-
-
-def extract_data_from_bushi_site(html):
-    data_entry = dict()
-    test = []
+    elif stats_line.find(attrs={'class':'group'}):
+        clan = split_stats.pop(3)
+        split_stats[2] = clan + ' / ' + split_stats[2]
         
-    for i, item in enumerate(html):
-        if i == 2|3: test.append(item) # We want to preserve line breaks in flavor text?
-        else: test.append(item.split('\n'))
+    return [name, split_stats, effect, flavor, bottom_line]
 
-    card_type = test[1][0]
 
-    data_entry['name'] = test[0][0]
+
+def extract_data_from_bushi_site(test):
+    data_entry = dict()
+    data_entry['name'] = test[0]
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~Section 1~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    card_type = test[1][0]
 
     # Dual nation cards are longer than expected, so we'll fit them into our zone here
-    if (len(test[1]) == 8 and "Order" in card_type and "Regalis" not in test[1][7])\
-    or (len(test[1]) == 9 and "Normal Unit" == card_type)\
-    or (len(test[1]) == 10 and "Trigger Unit" == card_type):
-        second_nation = test[1].pop(2)
-        test[1][1] = test[1][1] + ' / ' + second_nation
+    # if (len(test[1]) == 8 and "Order" in card_type and "Regalis" not in test[1][7])\
+    # or (len(test[1]) == 9 and "Normal Unit" == card_type)\
+    # or (len(test[1]) == 10 and "Trigger Unit" == card_type):
+    #     second_nation = test[1].pop(2)
+    #     test[1][1] = test[1][1] + ' / ' + second_nation
 
     data_entry['type'] = card_type
     data_entry['nation'] = test[1][1]
@@ -98,7 +100,7 @@ def extract_data_from_bushi_site(html):
 
     if "Unit" in card_type:
         data_entry['power'] = int(test[1][4].split(' ')[1])
-        data_entry['crit'] = int(test[1][5].split(' ')[1])
+        # data_entry['crit'] = int(test[1][5].split(' ')[1])
 
         # Grade 3's have an empty string when checking for shield, so this fixes that bug
         shield = test[1][6].split(' ')[1]
