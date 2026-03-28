@@ -56,15 +56,3 @@ def card_type_in_deck(decks_dict, card_list, deck='MainDeck'):
             return foo
         
     return 0
-
-
-
-def extract_regalis(decks_dict, regalis_list):
-    for card_name in regalis_list:
-        if card_is_in_deck(decks_dict, card_name):
-            if REGALIS_MAP[card_name] != None:
-                return REGALIS_MAP[card_name]
-            else:
-                return card_name
-        
-    return "None"
