@@ -1,14 +1,27 @@
 
+#card_data_collection_pipeline.py
+
 import requests
 
 
-import db_operations
+import src.db_operations as db_operations
+import src.helpers as helpers
 
 
 from bs4 import BeautifulSoup as Soup
 
 
 BASE_URL = 'https://en.cf-vanguard.com/cardlist/?cardno='
+
+
+def db_lookup(id_and_name):
+    id = helpers.extract_card_id(id_and_name)
+    return db_operations.find_first_in_table('main_table', 'card_data', {'id':id})
+
+
+def url_lookup(id_and_name):
+    id = helpers.extract_card_id(id_and_name)
+    return add_card_info_to_db(id)
 
 
 def add_card_info_to_db(set_num: str) -> dict[str|int]:
@@ -123,6 +136,7 @@ def extract_data_from_bushi_site(test):
         data_entry['trigger'] = None
 
     #~~~~~~~~~~~~~~~~~~~~Section 2~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # If there's no effect, add a placeholder
     if len(test) == 3:
         test.insert(2, '-')
     data_entry['effect'] = test[2]
@@ -136,7 +150,7 @@ def extract_data_from_bushi_site(test):
 
     #~~~~~~~~~~~~~~~~~~~~Section 4~~~~~~~~~~~~~~~~~~~~~~~
     data_entry['format'] = test[4][0]
-    data_entry['id'] = test[4][1]
+    data_entry['id'] =     test[4][1]
     data_entry['rarity'] = test[4][2]
     data_entry['artist'] = test[4][3]
 

@@ -10,11 +10,13 @@ def extract_card_name(id_and_name):
     
     By simply splitting the string there, we can easily return the name, or the ID
     """
-    return id_and_name.split(' : ')[1]
+    if ('EN' in id_and_name) and (' : ' in id_and_name):
+        return id_and_name.split(' : ')[1]
+    
+    return id_and_name # No : to exctract
 
 
-
-def extract_card_id(id_and_name):
+def extract_card_id(id_and_name:str):
     """
     Given an ID + Name line, return just the ID.
 
@@ -27,7 +29,7 @@ def extract_card_id(id_and_name):
     return id_and_name.split(' : ')[0]
     
 
-
+# this is redundant. we can check for truthiness of next func \|/
 # def card_is_in_deck(decks_dict, card_name, deck='MainDeck'):
 #     # return card_name in decks_dict[deck]
 #     for id_and_name in decks_dict[deck]:
@@ -56,3 +58,11 @@ def card_type_in_deck(decks_dict, card_list, deck='MainDeck'):
             return foo
         
     return 0
+
+
+def sort_dict_by_values(dict) -> dict:
+    sort = {k:v for k,v in sorted(
+        dict.items(), 
+        key=lambda k: k[1], 
+        reverse=True)}
+    return sort

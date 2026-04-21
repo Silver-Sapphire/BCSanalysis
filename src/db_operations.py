@@ -18,8 +18,10 @@ USERNAME = 'sjmichael17_db_user'
 PASSWORD = 'rVtL43eBjseB5XkS' # plz don't hack me bro ;-;
 CLUSER_ADDRESS = 'bcsproto.peazuyx.mongodb.net/?appName=BCSproto'
 
+DEFAULT_DB = 'main_table'
+DEFAULT_TABLE = 'all_events'
 
-def connect_to_db(database, table) -> tuple[MongoClient, None]:
+def connect_to_db(database=DEFAULT_DB, table=DEFAULT_TABLE) -> tuple[MongoClient, None]:
     """
     Returns a client connection to close later, and a target table from our db.
     """
@@ -31,7 +33,7 @@ def connect_to_db(database, table) -> tuple[MongoClient, None]:
 
 
 
-def get_table(database, table):
+def get_table(database=DEFAULT_DB, table=DEFAULT_TABLE):
     """
     Returns an entire table from our database as a data frame.
     """
@@ -40,7 +42,7 @@ def get_table(database, table):
 
 
 
-def get_answer_from_table(database, table, query):
+def get_answer_from_table(database=DEFAULT_DB, table=DEFAULT_TABLE, query={}):
     """
     Instead of finding all of a table, finds a given query.
 
@@ -56,7 +58,11 @@ def get_answer_from_table(database, table, query):
 
 
 
-def find_first_in_table(database, table, query):
+def find_first_in_table(database=DEFAULT_DB, table=DEFAULT_TABLE, query=None):
+    """
+    Returns the first element that fits a query
+    """
+    if query==None: raise ValueError("Input a query as 3rd arg.")
     client, collection = connect_to_db(database, table)
 
     item_dict= collection.find_one(query)
@@ -81,6 +87,9 @@ def insert_one_into_table(database, table, payload):
 
 
 def insert_many_into_table(database, table, payload):
+    """
+    TODO move logic implemented elsewhere.
+    """
     return insert_into_table(database, table, payload)
 
 
@@ -88,6 +97,7 @@ def insert_many_into_table(database, table, payload):
 def insert_into_table(database, table, payload):
     """
     aka insert many into table
+    TODO move logic implemented elsewhere. here..?
     """
     client, collection = connect_to_db(database, table)
 

@@ -1,9 +1,10 @@
 
 
-import requests
+from os import path
 
 
-import db_operations
+import src.db_operations as db_operations
+from src.feature_extraction import main as add_features
 
 
 import pandas as pd
@@ -19,7 +20,7 @@ from selenium.webdriver.support.expected_conditions\
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-from pymongo import MongoClient
+import requests
 
 # EVENT = 'bcs2526-california'
 # BASE_URL = "https://en.cf-vanguard.com/event/bcs2526/"
@@ -41,18 +42,16 @@ NAME = 1
 REGION = 2
 DATE = 3
 
-def main(base_url, event_info):
-    """
-    
-    """
-    # Part 1: Get basic info and decklog from event page ~~~~~~~~~~~~~~~~~~~~~~
-    url = f'{base_url}{event_info[URL_EXT]}'
+
+def get_decklogs(base_url, extension) -> pd.DataFrame:
+    url = f'{base_url}{extension}'
     soup = Soup(requests.get(url).text, features='html.parser')
     rows = soup.table.find_all('tr')
     # Remove header row, so all rows have td, and not th
     rows.pop(0)
 
     dataDict = dict()
+    
     for row in rows:
         # Decklog as the key
         key = row['data-deck-id']
@@ -74,16 +73,10 @@ def main(base_url, event_info):
                     ], 
                     axis=1)
     
-    # Part 1.5 - Wrangle the data ~~~~~~~~~~~~~`
-    # the rank and wins column need to be converted to ints,
-    # and now we have some new attributes that need to be encoded.`
-    df['rank'] = df['rank'].str[:-2].astype(int)
-    df['wins'] = df['wins'].astype(int)
-    df['location'] = event_info[NAME]
-    df['region'] = event_info[REGION]
-    df['date'] = event_info[DATE]
+    return df
 
-    # Part 2: Get deck info from decklog ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def get_decks_from_decklogs(df):
     # Setup Chrome to run headless (without a visible window)
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -109,7 +102,7 @@ def main(base_url, event_info):
                 driver.get(url)
                 waiter.until(
                     present((By.CLASS_NAME, "card-controller"))
-                )
+                )                
                 html = driver.page_source
                 deckSoup = Soup(html, features='html.parser')
                 deckDict, boss = decklogToDict(deckSoup)
@@ -128,28 +121,79 @@ def main(base_url, event_info):
     df.drop(columns=['index'], inplace=True, errors='ignore')
     driver.quit()
 
-    # Part 2.5 - Remove rows with no deck ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    df = df[~df.deck.isnull()]
+    return df
 
-    # Part 3: Save Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # for posterity, we'll save the data to two tables;
-    # one for just this event, and one for all events.
+
+def save_to_seperate_db(df, event_info):
     # seperate db
     db = 'JSONproto'
     table = event_info[NAME]
     payload = df.to_dict(orient='records')
     db_operations.overwrite_table(database=db, table=table, payload=payload)
 
+
+def save_to_main_table(df):
     # main db
     db = 'main_table'
     table = 'all_events'
     payload = df.to_dict(orient='records')
     db_operations.insert_into_table(database=db, table=table, payload=payload)
 
-    # Save as Json for testing 
-    # from os import path
-    # file_path = path.join('.json', f'{location_info[NEWNAME]}.json')
-    # df.to_json(file_path, orient='records')
+
+def save_to_local_json(df, event_info):
+    # Save as Json localy
+    file_path = path.join('.json', f'{event_info[NAME]}.json')
+    df.to_json(file_path, orient='records')
+
+
+def save_to_local_main_table(df):
+    #extend local json save
+    file = path.join('.json', 'ROADTRIP.json')
+    full_df = pd.read_json(file)
+    pd.concat([full_df, df]).to_json(file)
+
+
+def reformat_df(df, event_info):
+    # the rank and wins column need to be converted to ints,
+    # and now we have some new attributes that need to be encoded.`
+    df['rank'] = df['rank'].str[:-2].astype(int)
+    df['wins'] = df['wins'].astype(int)
+    df['location'] = event_info[NAME]
+    df['region'] = event_info[REGION]
+    df['date'] = event_info[DATE]
+
+    return df
+
+
+def main(base_url, event_info):
+    """
+    
+    alias - get_data (used in our main file)
+    """
+    # Part 1: Get basic info and decklog from event page ~~~~~~~~~~~~~~~~~~~~~~
+    raw_df = get_decklogs(base_url, event_info[URL_EXT])
+    
+    # Part 1.5 - Wrangle the data ~~~~~~~~~~~~~`
+    deckless_df = reformat_df(raw_df, event_info)
+
+    # Part 2: Get deck info from decklog ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ddf = get_decks_from_decklogs(deckless_df)
+
+    # Part 2.5 - Remove rows with no deck ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ddf = ddf[~ddf.deck.isnull()]
+
+    # Part 2.6 - Add Engineered Features ~~~~~
+    df = add_features(ddf)
+
+    # Part 3: Save Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # for posterity, we'll save the data to two tables;
+    # one for just this event, and one for all events.
+    save_to_local_json(df, event_info)
+    save_to_seperate_db(df, event_info)
+
+    save_to_local_main_table(df)
+    save_to_main_table(df)
+
 
     return None
 
