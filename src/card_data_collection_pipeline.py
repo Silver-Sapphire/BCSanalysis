@@ -1,12 +1,9 @@
 
 #card_data_collection_pipeline.py
 
-import requests
-
-
 import src.db_operations as db_operations
+from src.helpers import get_page as get
 import src.helpers as helpers
-
 
 from bs4 import BeautifulSoup as Soup
 
@@ -32,9 +29,9 @@ def add_card_info_to_db(set_num: str) -> dict[str|int]:
 
         data_entry = extract_data_from_bushi_site(html_text)
 
-        # db_operations.insert_one_into_table('main_table',
-        #                                     'card_data',
-        #                                     data_entry)
+        db_operations.insert_one_into_table('main_table',
+                                            'card_data',
+                                            data_entry)
 
         return data_entry
 
@@ -64,7 +61,7 @@ def get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
     These are the 5 children of the data element, each with a different number of attributes.
     """
     url = BASE_URL + str(set_code)
-    response = requests.get(url)
+    response = get(url)
     soup=Soup(response.text, 'html.parser')
     data = soup.find(attrs={'class':'data'})
 

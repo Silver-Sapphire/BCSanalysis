@@ -5,7 +5,7 @@ from os import path
 
 import src.db_operations as db_operations
 from src.feature_extraction import main as add_features
-
+from src.helpers import get_page as get
 
 import pandas as pd
 
@@ -20,7 +20,6 @@ from selenium.webdriver.support.expected_conditions\
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-import requests
 
 # EVENT = 'bcs2526-california'
 # BASE_URL = "https://en.cf-vanguard.com/event/bcs2526/"
@@ -45,7 +44,7 @@ DATE = 3
 
 def get_decklogs(base_url, extension) -> pd.DataFrame:
     url = f'{base_url}{extension}'
-    soup = Soup(requests.get(url).text, features='html.parser')
+    soup = Soup(get(url).text, features='html.parser')
     rows = soup.table.find_all('tr')
     # Remove header row, so all rows have td, and not th
     rows.pop(0)
