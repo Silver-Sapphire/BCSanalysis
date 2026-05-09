@@ -30,7 +30,7 @@ def extract_card_name(id_and_name):
     if ('EN' in id_and_name) and (' : ' in id_and_name):
         return id_and_name.split(' : ')[1]
     
-    return id_and_name # No : to exctract
+    return id_and_name # No ':' to exctract on
 
 
 def extract_card_id(id_and_name:str):

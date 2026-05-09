@@ -138,4 +138,12 @@ def graph_card_peformance_for_boss(card, boss, df, formats):
         'cardAMT', 
         'wins',
         [i for i in range(5)],
-        formats)
+        formats
+    )
+    
+    graph_representation(TODO)
+
+
+def graph_representation(TODO):
+
+    
