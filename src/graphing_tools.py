@@ -118,9 +118,9 @@ def graph_over_format(df, split_metric, graph_metric, item_list, format_list):
         metric_dfs.append(pd.concat(metric_data))
 
     for df in metric_dfs:
-        test1=df['date']['mean']
-        test2=df[graph_metric]['mean']
-        plt.plot(test1, test2)
+        x=df['date']['mean']
+        y=df[graph_metric]['mean']
+        plt.plot(x, y)
 
     plt.xlabel("Date")
     plt.ylabel(graph_metric)
@@ -141,9 +141,36 @@ def graph_card_peformance_for_boss(card, boss, df, formats):
         formats
     )
     
-    graph_representation(TODO)
+    graph_representation(df, formats)
 
 
-def graph_representation(TODO):
+def graph_representation(df, formats):
+    format_dfs = break_df_by_format(df, formats)
 
+    for i, df in enumerate(format_dfs):
+        tmp = df.groupby('cardAMT').describe()
+        format_dfs[i] = tmp
     
+    for df in format_dfs:
+        x=df['date']['mean']
+        y=create_ratio_list(df)
+        plt.plot(x,y)
+
+    plt.xlabel("Date")
+    plt.ylabel("Percentage")
+    plt.title("Build Rep. over Format")
+    plt.legend([i for i in range(len(y))], loc=3, fontsize='xx-small')
+    plt.grid(True)
+
+    plt.show()
+
+     
+def create_ratio_list(df: pd.DataFrame):
+    total = df.sum('count')
+    ratios = []
+    
+    for count in df['count']:
+        ratios.append(count / total)
+    
+    return ratios
+ 

@@ -152,10 +152,14 @@ def save_to_local_main_table(df):
     pd.concat([full_df, df]).to_json(file)
 
 
-def reformat_df(df, event_info):
+def reformat_df(df :pd.DataFrame , event_info: list) -> pd.DataFrame:
     # the rank and wins column need to be converted to ints,
     # and now we have some new attributes that need to be encoded.`
-    df['rank'] = df['rank'].str[:-2].astype(int)
+    try:
+        df['rank'] = df['rank'].str[:-2].astype(int)
+    except ValueError:
+        df['rank'] = df['rank'].astype(int)
+
     df['wins'] = df['wins'].astype(int)
     df['location'] = event_info[NAME]
     df['region'] = event_info[REGION]
