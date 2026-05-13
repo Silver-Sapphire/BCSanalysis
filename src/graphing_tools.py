@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 
 def card_count_for_boss(card_name=None, boss_name=None, df=None, group_feature='cardAMT'):
     """
+    Given a cardname for a boss in our df,  
+    return a dataframe split based on the amount of that card in a deck.
     """
     if card_name == None:
         raise ValueError("Please provide a card name to analyze")
@@ -63,12 +65,30 @@ def graph_mean_over_time(dfs):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def narrow_frame(full_df, boss):
+    """
+    given a full format df and a boss,
+    return the df filted to only have the given boss, grouped by location
+    (todo, make group featrue changeable?)
+
+    Sort values, and then try to extract only the data we care about,
+    so the data frame is easier to look out, without loads of redundant info
+    """
     foo = full_df[full_df.boss == boss].groupby('location').describe()
-    foo = foo.loc[:,[('date','max'), ('date','count'), ('wins','mean'), ('stand_heal_count', 'mean')]].sort_values(('date','max'))
+    foo = foo.loc[:,[
+        ('date','count'), 
+        ('date','mean'), 
+        ('wins','mean'), 
+        ('stand_heal_count', 'mean')
+
+        ]].sort_values(('date','mean'))
+    
     return foo
 
 
 def boss_avgs(df, bossname):
+    """
+    
+    """
     foo = narrow_frame(df, bossname)
     foo.reset_index(inplace=True)
     foo.columns = ['location','date','count','avg_wins','avg_rs_heal']
