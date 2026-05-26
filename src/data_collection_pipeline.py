@@ -41,8 +41,20 @@ NAME = 1
 REGION = 2
 DATE = 3
 
+DATA_BASE_1 = 'JSONproto'
+DATA_BASE_2 = 'main_table'
+EVENTS_TABLE= 'all-events'
+
 
 def get_decklogs(base_url, extension) -> pd.DataFrame:
+    """
+    Given a circut's base url, and an extension leading to a particular event;
+
+    retrieve all the information on the page, and most importantly, decklogs,
+    and return that as a DataFrame.
+
+    Any rows with an invalid decklog will be discarded.
+    """
     url = f'{base_url}{extension}'
     soup = Soup(get(url).text, features='html.parser')
     rows = soup.table.find_all('tr')
@@ -62,20 +74,29 @@ def get_decklogs(base_url, extension) -> pd.DataFrame:
 
     df = pd.DataFrame(dataDict).transpose()
     df = df.set_axis([
-                        'rank',#
+                        'rank',#int
                         'name',
                         'boss',
-                        'wins',#
+                        'wins',#int
                         'nation',
                         'decklog',
-                        'deck'
+                        'deck',#dict
                     ], 
                     axis=1)
     
     return df
 
 
-def get_decks_from_decklogs(df):
+def get_decks_from_decklogs(df) -> pd.DataFrame:
+    """
+    Given a DataFrame with decklogs, but with empty decks,
+
+    go to the webpage associated with each decklog,
+    turn that deck data into a dictionary,
+    add it to the data frame,
+
+    and return it back to the caller.
+    """
     # Setup Chrome to run headless (without a visible window)
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -123,29 +144,43 @@ def get_decks_from_decklogs(df):
     return df
 
 
-def save_to_seperate_db(df, event_info):
+def save_to_seperate_db(df, event_info) -> None:
+    """
+    Given a DataFrame for an event, and it's name from it's event_info,
+
+    Save it to our configured data base, on it's own private table.
+    """
     # seperate db
-    db = 'JSONproto'
+    db = DATA_BASE_1
     table = event_info[NAME]
     payload = df.to_dict(orient='records')
     db_operations.overwrite_table(database=db, table=table, payload=payload)
 
 
-def save_to_main_table(df):
+def save_to_main_table(df) -> None:
+    """ 
+    Given an event's Data Frame,
+
+    Save it to our configured central table, alongside other events from that circut.
+    """
     # main db
-    db = 'main_table'
-    table = 'all_events'
+    db = DATA_BASE_2
+    table = EVENTS_TABLE
     payload = df.to_dict(orient='records')
     db_operations.insert_into_table(database=db, table=table, payload=payload)
 
 
-def save_to_local_json(df, event_info):
-    # Save as Json localy
+def save_local_json_table(df, event_info):
+    """
+    Given a DataFrame for an event, and it's name from it's event_info,
+
+    Save it to our machine as a local JSON file for offline use.
+    """
     file_path = path.join('.json', f'{event_info[NAME]}.json')
     df.to_json(file_path, orient='records')
 
 
-def save_to_local_main_table(df):
+def extend_local_main_json_table(df):
     #extend local json save
     file = path.join('.json', 'ROADTRIP.json')
     full_df = pd.read_json(file)
@@ -153,6 +188,11 @@ def save_to_local_main_table(df):
 
 
 def reformat_df(df :pd.DataFrame , event_info: list) -> pd.DataFrame:
+    """
+    I hope this function is antiquated, but it was written to convert the first generation data base, to second.
+    Rank and wins 
+    """
+
     # the rank and wins column need to be converted to ints,
     # and now we have some new attributes that need to be encoded.`
     try:
@@ -168,8 +208,30 @@ def reformat_df(df :pd.DataFrame , event_info: list) -> pd.DataFrame:
     return df
 
 
-def main(base_url, event_info):
+def get_data(base_url, event_info):
+    main(base_url, event_info)
+
+
+def main(base_url, event_info) -> None:
     """
+    Given the base URL for a circut, and info about that particular event;
+
+    retrieve information from the events website,
+    format it and enforce consistency,
+    retrieve all the cards played in each deck from the decklog, and add it to our df,
+    (decks with no decklog or deck are not valid, and are filtered out)
+
+    Additional features can be added to the data via the 'add_features' function, such as;
+    amount of particular cards, which OT /RegPiece are played, how many G1's, etc.
+
+    Lastly, everything needs to be saved. It may be a bit redundant, but right now, we save to;
+    a local exclusive for event and all events JSON files, 
+    and another pair on a mongoDB server.
+
+    TODO; 
+    make saving more modular,
+    maybe we can pass features when we call?
+
     
     alias - get_data (used in our main file)
     """
@@ -191,10 +253,10 @@ def main(base_url, event_info):
     # Part 3: Save Data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # for posterity, we'll save the data to two tables;
     # one for just this event, and one for all events.
-    save_to_local_json(df, event_info)
+    save_local_json_table(df, event_info)
     save_to_seperate_db(df, event_info)
 
-    save_to_local_main_table(df)
+    extend_local_main_json_table(df)
     save_to_main_table(df)
 
 
@@ -229,11 +291,26 @@ def get_values(row):
     return values
 
 
-def decklogToDict(soup):
+def decklogToDict(soup) -> tuple[dict[str: dict[str: int]], str]:
     """
-    TODO make work with premium
+    TODO make work with premium. This build only works for Standard decks.
     
-    Given the BeautifulSoup for a decklogs...
+    Given the BeautifulSoup for a decklog,
+    return the information we need from it; 
+    mainly, the deck, as nested dictionaries to keep the main, ride, and G decks seperate,
+    but we also return the boss because it can be extremely difficult to retrieve from the main page,
+    so it's easier to just quickly check the ride deck G3 ourselves. 
+
+    The decks are stored as dictionares like so:
+    { 
+        "deckType" :
+            {
+                "name1":1,
+                "name2":2,
+                ...
+            }
+        "deckType2" : ...
+    }
     """
     # Initialize the decks we return
     # We also retrive the boss, bc the top 3 decks lose that info
@@ -287,6 +364,7 @@ def decklogToDict(soup):
             
     return deckDict, boss
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # NEW EVENT INFO SCRAOING TOOL
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -312,6 +390,7 @@ def scrape_event_info():
         'regional-asia': 'AO'
     }
     final_event_list = []
+
     # Credt: Geminin Pro
     # 3. Iterate through the defined regions
     for region_id, continent_code in region_map.items():
@@ -359,7 +438,9 @@ def scrape_event_info():
 
     # If you want to use this list later in the script, it is stored in `final_event_list`
     # print("\nRaw list output:")
-    # print(final_event_list)# Credt: Geminin Pro
+    # print(final_event_list)
+    # # Credt: Geminin Pro END
+    
     # 3. Iterate through the defined regions
     for region_id, continent_code in region_map.items():
         # Find the main container for this specific continent
@@ -410,13 +491,16 @@ def scrape_event_info():
 
     return final_event_list
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # END TOOL
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 if __name__ == "__main__":
     # print("""
     #     Ussage: main({circut event report base URL, event specific URL extension })
     #       """)
-    import sys
-    main(sys.argv[1], sys.argv[2])
+    # import sys
+    # main(sys.argv[1], sys.argv[2])
+    print("no :/")

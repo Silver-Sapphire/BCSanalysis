@@ -143,7 +143,8 @@ OVER_MAP = {
     'Beauteous Eternity, Lururatye':'Red', #ls
 
     # 'Generic'
-    # 'olbiron's....
+    # 'olbiron's.... TODO
+    # Colored
     'Spiritual King of Ignition, Valnout':'Red',
     'Spiritual King of Aquatics, Idosfaro':'Blue',
     'Spiritual King of Brightsky, Meridzanblia':'Yellow',
@@ -215,6 +216,11 @@ REGALIS_MAP = {
 }
 
 def extract_via_map(decks_dict, card_list, card_map):
+    """
+    Given a deck's nested dictionary, a list of card names to map, and a map of 'root names',
+
+    return the 'root name'. If none is present, reutrn `"None"`
+    """
     for card_name in card_list:
         if helpers.card_count_in_deck(decks_dict, card_name):
             if card_map[card_name] != None:
@@ -225,8 +231,37 @@ def extract_via_map(decks_dict, card_list, card_map):
     return "None"
 
 
+def add_card_count_feature(df, card_name, new_feature_name, filter_column, filter_value):
+    """
+    Given a dataframe and a card name,
+    filter the dataframe by the given value/column pair,
+    add a new feaure to the df, the amount of the given card name played,
+    as a new column 'new_feature_name',
+    and returns the new dataferame, with the new feature.
+    """
+    filtered_df = df[df[filter_column]==filter_value]
+    filtered_df.loc[:,new_feature_name] = filtered_df.deck.apply(lambda deck: helpers.card_type_in_deck(deck, card_name))
+    return filtered_df
+
 
 def main(full_df):
+    """
+    Given a data frame, 
+    
+    add these hardcoded features based on the deck's nested deck dictionaries.
+
+    Currently;
+
+    stand heals,
+    crit heals,
+
+    shield draws,
+    shield fronts,
+    soul fronts,
+    
+    regalis piece,
+    over trigger
+    """
     full_df.loc[:,'stand_heals']      = full_df.deck.apply(lambda deck: helpers.card_type_in_deck(deck, STAND_HEALS))
     full_df.loc[:,'crit_heals']       = full_df.deck.apply(lambda deck: helpers.card_type_in_deck(deck, CRIT_HEALS))
 
@@ -237,6 +272,7 @@ def main(full_df):
     full_df.loc[:, 'regalis_piece']   = full_df.deck.apply(lambda deck: extract_via_map(deck, REGALIS, REGALIS_MAP))
     full_df.loc[:, 'over_trigger']    = full_df.deck.apply(lambda deck: extract_via_map(deck, OVER, OVER_MAP))
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # this doesn't add a feature, but changes the id&name string to just name.
     full_df.loc[:, 'boss']            = full_df.boss.apply(lambda boss: helpers.extract_card_name(boss))
 
     return full_df

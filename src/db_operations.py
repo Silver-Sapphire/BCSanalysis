@@ -73,9 +73,9 @@ def find_first_in_table(database=DEFAULT_DB, table=DEFAULT_TABLE, query=None):
 
 
 
-def insert_one_into_table(database, table, payload):
+def insert_one_into_table(database=DEFAULT_DB, table=DEFAULT_TABLE, payload=None):
     """
-    
+    Insert one payload into a table in our database.
     """
     client, collection = connect_to_db(database, table)
 
@@ -88,7 +88,7 @@ def insert_one_into_table(database, table, payload):
 
 def insert_many_into_table(database, table, payload):
     """
-    TODO move logic implemented elsewhere.
+    alias for `insert_into_table`
     """
     return insert_into_table(database, table, payload)
 
@@ -96,8 +96,10 @@ def insert_many_into_table(database, table, payload):
 
 def insert_into_table(database, table, payload):
     """
-    aka insert many into table
-    TODO move logic implemented elsewhere. here..?
+    aka `insert_many_into_table`
+    calls the `insert_many` method on our table, passing our payload.
+
+    Requires payload to already be correctly formated.
     """
     client, collection = connect_to_db(database, table)
 
@@ -110,7 +112,8 @@ def insert_into_table(database, table, payload):
 
 def overwrite_table(database, table, payload):
     """
-    
+    Given a table in our given database, and a payload to save,
+    DELETE the database, and then recreate it using the payload.
     """
     client, collection = connect_to_db(database, table)
 
@@ -124,7 +127,11 @@ def overwrite_table(database, table, payload):
 
 def update_table(database, table, updates):
     """
-    
+    Given a table in our given databse, and a set of updates to make,
+    apply the given updates to the table.
+
+    This function expects the updates to already be formated correctly
+    for the `bulk_write` function of MongoBD collection objects.
     """
     client, collection = connect_to_db(database, table)
 

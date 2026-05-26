@@ -14,6 +14,9 @@ def card_count_for_boss(card_name=None, boss_name=None, df=None, group_feature='
     """
     Given a cardname for a boss in our df,  
     return a dataframe split based on the amount of that card in a deck.
+
+    TODO, extract the group feature function to its own thing.
+    This function is a bit specialezed. (#spe-L-ing)
     """
     if card_name == None:
         raise ValueError("Please provide a card name to analyze")
@@ -33,10 +36,14 @@ def card_count_for_boss(card_name=None, boss_name=None, df=None, group_feature='
     return card_df
 
 
-def seperate_0_counts(df):
+def seperate_0_counts(df) -> tuple[pd.DataFrame]:
     """
     Seperates a datafrome with atribute 'cardAMT' into two df's,
-    one where the count is 0, and 
+    one where the count is 0, 
+    and another where the card amount is 1 or more,
+
+    Return them as a tuple of 2 dataframes;
+      (with card, wihtout card)
     """
     haves =    df[df['cardAMT']>0]
     havenots = df[df['cardAMT']==0]
@@ -45,6 +52,14 @@ def seperate_0_counts(df):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~``
 
 def graph_values(dfs:list[pd.DataFrame], str1='date',str2='mean', labels=[]):
+    """
+    Given a dataframe, and 2 attributes of it, and maybe some labels for the graph,
+    plot the first 'str' arggument as the x, the second as y, add labels if given,
+
+    create a small legend, and show the graph.
+
+    It defaults to graphing the average date, which isn't very useful.
+    """
     for df in dfs:
         tmp=df.reset_index()
         plt.plot(tmp[str1],tmp[str2])
@@ -87,7 +102,14 @@ def narrow_frame(full_df, boss):
 
 def boss_avgs(df, bossname):
     """
-    
+    Given a dataframe and a boss name, 
+
+    return a dataframe that shows the averages for the given boss grouped by the location,
+    [location, date, count, avg_wins, avg_rs_heal]
+
+    TODO!!!
+    This, and the narrow_frame function should probably be reworked to allow for a passing
+    of what features we want to avg, allowing for more flexibility.
     """
     foo = narrow_frame(df, bossname)
     foo.reset_index(inplace=True)
@@ -99,7 +121,15 @@ def boss_avgs(df, bossname):
 
 def seperate_format(df, format) -> tuple[pd.DataFrame]:
     """
-    return the format removed from the df, and the df without the removed format
+    Given a dataframe and a format (tuple[date, name]),
+    
+    split the df in two,
+    one prior to the date of the format,
+    and another leading from the start of that format, to the present.
+
+    This will allow for a recusive call, to seperate each format one by one.
+
+    (present-start, prior)
     """
     fdate = format[0]
     fdate = pd.to_datetime(fdate)
@@ -110,6 +140,14 @@ def seperate_format(df, format) -> tuple[pd.DataFrame]:
 
 
 def break_df_by_format(df, formats) -> list[pd.DataFrame]:
+    """
+    Given a data frame, and a list of formats list(tuple[date, name])
+
+    return a list of data frames, broken up based on the formats.
+
+    Unless the first format is before the first tournament,
+    there will be one df per format, plus one with any dates prior to the first format.
+    """
     format_dfs = []
     remaining = df.loc[:]
     for format in formats:
@@ -122,6 +160,19 @@ def break_df_by_format(df, formats) -> list[pd.DataFrame]:
 
 
 def graph_over_format(df, split_metric, graph_metric, item_list, format_list):
+    """
+    Given a dataframe, a metric to aggregate the data on, another metric to graph on the y axis, 
+    a list of our 'special format tuple list' to use to shape the x axis and group the dataq
+    as well as a list of items from the first metric to graph, to prevent graphing an entire table.
+
+    create a graph of how our split and graph metrics change over the formats.
+
+    Not averaging out by format, and just graphing the events over time creates a lot of noise in the data.
+    Using this to average out the data ofer the short stretches of time with the same legal cardpool
+    allows for a smoother visualization of trends.
+
+    This could do with a refactor.
+    """
     format_dfs = break_df_by_format(df, format_list)
 
     for i, df in enumerate(format_dfs):
@@ -132,8 +183,9 @@ def graph_over_format(df, split_metric, graph_metric, item_list, format_list):
     for item in item_list:
         metric_data = []
         for df in format_dfs:
-            tmp = df.reset_index()
-            metric_data.append(tmp[tmp[split_metric]==item])
+            if not df.empty:
+                tmp = df.reset_index()
+                metric_data.append(tmp[tmp[split_metric]==item])
 
         metric_dfs.append(pd.concat(metric_data))
 
@@ -152,7 +204,46 @@ def graph_over_format(df, split_metric, graph_metric, item_list, format_list):
 
 
 def graph_card_peformance_for_boss(card, boss, df, formats):
+    """
+    Given a card name, a boss name, a data frame, and a list of format tuples,
+
+    display a graph of the average win rate of each card amount,
+    and a graph of the representation of each card amount.
+
+    The results are only for the given boss, and graphed over time binned into the given formats.
+    """
     boss_df = card_count_for_boss(card, boss, df)
+    format_dfs = break_df_by_format(boss_df, formats)
+
+    for i, df in enumerate(format_dfs):
+        tmp = df.groupby('cardAMT').describe()
+        format_dfs[i] = tmp
+
+    amt_dfs = []
+    ratios=[]
+    for i in range(5):
+        data = []
+        for df in format_dfs:
+            if not df.empty:
+                tmp = df.reset_index()
+                data.append(tmp[tmp['cardAMT']==i])
+                ratios.append(create_ratio_list(df))
+
+        amt_dfs.append(pd.concat(data))
+
+    #TODO add ratio change here
+    for df in amt_dfs:
+        x=df['date']['mean']
+        y=create_ratio_list(df)
+        plt.plot(x, y)
+
+    plt.xlabel("Date")
+    plt.ylabel("Percentage")
+    plt.title("Build Rep. over Format")
+    plt.legend([i for i in range(5)], loc=3, fontsize='xx-small')
+    plt.grid(True)
+    plt.show()
+
     graph_over_format(
         boss_df, 
         'cardAMT', 
@@ -160,37 +251,20 @@ def graph_card_peformance_for_boss(card, boss, df, formats):
         [i for i in range(5)],
         formats
     )
-    
-    graph_representation(df, formats)
-
-
-def graph_representation(df, formats):
-    format_dfs = break_df_by_format(df, formats)
-
-    for i, df in enumerate(format_dfs):
-        tmp = df.groupby('cardAMT').describe()
-        format_dfs[i] = tmp
-    
-    for df in format_dfs:
-        x=df['date']['mean']
-        y=create_ratio_list(df)
-        plt.plot(x,y)
-
-    plt.xlabel("Date")
-    plt.ylabel("Percentage")
-    plt.title("Build Rep. over Format")
-    plt.legend([i for i in range(len(y))], loc=3, fontsize='xx-small')
-    plt.grid(True)
-
-    plt.show()
 
      
-def create_ratio_list(df: pd.DataFrame):
-    total = df.sum('count')
+def create_ratio_list(df: pd.DataFrame) -> list[float]:
+    """
+    Given a data frame, 
+    return a list of ratios for the 'count' column.
+    
+    Ratio =  Total count of all columns / count for this onen column
+    """
+    total = int(df['rank']['count'].sum())
     ratios = []
     
-    for count in df['count']:
-        ratios.append(count / total)
+    for row in df['rank']['count']:
+        ratios.append(row / total)
     
     return ratios
  

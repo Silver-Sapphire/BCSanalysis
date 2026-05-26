@@ -4,6 +4,9 @@ import requests
 
 
 def get_page(url):
+    """
+    Given a URL, return the result of a 'get request' from a mock web-browswer.
+    """
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -58,6 +61,11 @@ def extract_card_id(id_and_name:str):
 
 
 def card_count_in_deck(decks_dict, card_name, deck='MainDeck'):
+    """
+    Given a deck's nested dictionary, a card to look for, and a deck dict from the nest to look in,
+
+    return the amount of that card contained in that deck dict.
+    """
     # return decks_dict[deck].get(card_name, 0)
     for id_and_name, amount in decks_dict[deck].items():
         if card_name in id_and_name:
@@ -69,6 +77,11 @@ def card_count_in_deck(decks_dict, card_name, deck='MainDeck'):
 
 # This function combines the former two, and allows a list of cards as input
 def card_type_in_deck(decks_dict, card_list, deck='MainDeck'):
+    """
+    Given a deck's nested dictionary, a list of cards to look for, and a deck dict from the nest to look in,
+    
+    return the amount played of the first card in the list found in the deck.
+    """
     for card in card_list:
         foo = card_count_in_deck(decks_dict, card, deck)
         if foo:
@@ -77,7 +90,12 @@ def card_type_in_deck(decks_dict, card_list, deck='MainDeck'):
     return 0
 
 
-def sort_dict_by_values(dict) -> dict:
+def sort_dict_by_values(dict:dict) -> dict:
+    """
+    Given a dictionary, 
+    return that dict sorted based on k[1]
+    in descending order.
+    """
     sort = {k:v for k,v in sorted(
         dict.items(), 
         key=lambda k: k[1], 

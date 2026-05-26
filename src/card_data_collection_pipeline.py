@@ -11,23 +11,40 @@ from bs4 import BeautifulSoup as Soup
 BASE_URL = 'https://en.cf-vanguard.com/cardlist/?cardno='
 
 
-def db_lookup(id_and_name):
+def db_lookup(id_and_name: str) -> dict:
+    """ 
+    given an id/name line for a card,
+    return it's info in our db, if it exists.
+    """
     id = helpers.extract_card_id(id_and_name)
     return db_operations.find_first_in_table('main_table', 'card_data', {'id':id})
 
 
-def url_lookup(id_and_name):
+def url_lookup(id_and_name: str) -> dict:
+    """
+    given an id/name line for a card;
+
+    lookup the data from the Bushi site,
+    deposit it into our db for future retrival,
+    and return it's dictionary.
+    """
     id = helpers.extract_card_id(id_and_name)
     return add_card_info_to_db(id)
 
 
 def add_card_info_to_db(set_num: str) -> dict[str|int]:
-    """Given a card name, add its information to a central data base"""
+    """
+    Given a set id code;
+
+    lookup the data from the Bushi site,
+    deposit it into our db for future retrival,
+    and return it's dictionary.
+    """
 
     try:
-        html_text = get_card_info_from_bushi_site(set_num)
+        soup = get_card_info_from_bushi_site(set_num)
 
-        data_entry = extract_data_from_bushi_site(html_text)
+        data_entry = extract_data_from_bushi_site(soup)
 
         db_operations.insert_one_into_table('main_table',
                                             'card_data',
@@ -38,11 +55,75 @@ def add_card_info_to_db(set_num: str) -> dict[str|int]:
     except Exception as something_went_wrong:
         print(f'Error during data collection of {set_num}: ', something_went_wrong)
         raise LookupError
+    
 
+def get_soup_from_bushi_site(set_code:str) -> Soup:
+    """
+    
+    """
+    url = BASE_URL + str(set_code)
+    response = get(url)
+    soup = Soup(response.text, 'html.parser')
+    data = soup.find(attrs={'class':'data'})
+
+    return data
+
+
+def extract_text_from_soup(soup, target_class) -> str:
+    return soup.find(attrs={'class':target_class}).text.strip()
+
+
+def extract_data_from_bushi_soup(soup:Soup) -> list[Any]:
+    """
+    
+    """
+    data_entry = dict()
+    data_entry['name'] = extract_text_from_soup(soup, 'name')
+    data_entry['effect'] = extract_text_from_soup(soup, 'effect')
+    data_entry['flavor'] = extract_text_from_soup(soup, 'flavor')
+
+    data_entry['type'] = extract_text_from_soup(soup, 'type')
+
+    # nation /dual nation handling.
+    nations = soup.find_all(attrs={'class':'nation'})
+    if len(nations) > 1:
+        second_nation = nations.pop()
+        nation_str = nations.pop() + ' / ' + second_nation
+        data_entry['nation'] = nation_str
+
+    if len(nations) == 1:
+        data_entry['nation'] = extract_text_from_soup(soup, 'nation')
+    
+
+    #clan ish
+    data_entry['group'] = extract_text_from_soup(soup, 'group')
+
+    data_entry['race'] = extract_text_from_soup(soup, 'race') 
+    data_entry['grade'] = extract_text_from_soup(soup, 'grade')
+    data_entry['power'] = extract_text_from_soup(soup, 'power')
+    data_entry['shield'] = extract_text_from_soup(soup, 'shield')
+    data_entry['critical'] = extract_text_from_soup(soup, 'critical')
+    data_entry['ability'] = extract_text_from_soup(soup, 'ability')
+    data_entry['trigger'] = extract_text_from_soup(soup, 'trigger')
+    data_entry['gift'] = extract_text_from_soup(soup, 'gift')
+
+    # bottom_line_list = ['regulation','number','rarity','illustrator']
+    # for line in bottom_line_list: 
+        # data_entry[line] = extract_text_from_soup(soup, line)
+    data_entry['format'] = extract_text_from_soup(soup, 'regulation')
+    data_entry['id'] = extract_text_from_soup(soup, 'number')
+    data_entry['rarity'] = extract_text_from_soup(soup, 'rarity')
+    data_entry['artist'] = extract_text_from_soup(soup, 'illustrator')
+
+
+    return data_entry
 
 
 def get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
-    """Given a name, and maybe decklog, retrieve the text of the official webpage with it's information
+    """Given a set id code, 
+    retrieve the text of the official webpage,
+    and break it into a list of area data,
+    broken into smaller lists, creating a matrix of sorts.
     
     The wepbage contains an element, 'data', which has all the informatin about the card for the URL.
     It contains some sub elements, so the easiest way to extract it is to simply retrieve the text from each,
@@ -68,6 +149,7 @@ def get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
     name = data.find(attrs={'class':'name'}).text.strip()
     effect = data.find(attrs={'class':'effect'}).text.strip()
     flavor = data.find(attrs={'class':'flavor'}).text.strip()
+
     stats_line, bottom_line = data.find_all(attrs={'class':'text-list'})
     bottom_line = bottom_line.text.strip().split('\n')
     split_stats = stats_line.text.strip().split('\n')
@@ -84,13 +166,30 @@ def get_card_info_from_bushi_site(set_code: str) -> list[list[str]]:
 
 
 
-def extract_data_from_bushi_site(test):
+def extract_data_from_bushi_site(test) -> dict[str:any]:
+    """
+    Given our "Data Matrix" from the Bushi site,
+
+    neatly transform the raw data into a dictionary.
+
+    "Neatly" is doing a lot of heavy lifting there, especially with how messy
+    bushi can be with it. It's quite easy to throw errors in 'production'
+    because bushi doesn't given the promos correct formatting.
+
+    That being said, the general idea is to figure out what type of card we're
+    working with, so we can know what to and not to convert to an int.
+
+    The function is broken into sections based of which row of the data
+    it's working on, to keep things organized and 'neat'.
+    """
     data_entry = dict()
     data_entry['name'] = test[0]
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~Section 1~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Determine Card type
     card_type = test[1][0]
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~Section 1~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # I was told not to delete unused code, but I think this is antiquated :/
+    
     # Dual nation cards are longer than expected, so we'll fit them into our zone here
     # if (len(test[1]) == 8 and "Order" in card_type and "Regalis" not in test[1][7])\
     # or (len(test[1]) == 9 and "Normal Unit" == card_type)\
@@ -106,7 +205,7 @@ def extract_data_from_bushi_site(test):
     if "Crest" in card_type:
         data_entry['grade'] = None
     else:
-        data_entry['grade'] = int(test[1][3].split(' ')[1])
+            data_entry['grade'] = int(test[1][3].split(' ')[1])
 
     if "Unit" in card_type:
         data_entry['power'] = int(test[1][4].split(' ')[1])

@@ -10,17 +10,33 @@ import helpers
 import pandas as pd
 
 
-def db_lookup(id_and_name):
+def db_lookup(id_and_name) -> TODO:
+    """
+    Given an ID&name string for a card, 
+    return info from the database for the given id, if it exists.
+    """
     id = helpers.extract_card_id(id_and_name)
     return db_operations.find_first_in_table('main_table', 'card_data', {'id':id})
 
 
-def url_lookup(id_and_name):
+def url_lookup(id_and_name) -> TODO:
+    """
+    Given an ID&name string for a card,
+
+    retrieve info from the bushi site for the given id,
+    add that info to the database,
+    and return it.
+    """
     id = helpers.extract_card_id(id_and_name)
     return card_data_collection_pipeline.add_card_info_to_db(id) 
 
 
-def card_amt_for_boss(df=None, bossname=None, cardname=None):
+def card_amt_for_boss(df=None, bossname=None, cardname=None) -> pd.DataFrame:
+    """
+    Broken???
+
+    """
+    # Get data from db if no df given
     if df == None & bossname != None:
         foo = db_operations.get_answer_from_table(query=
                                                  {'boss':
@@ -34,7 +50,10 @@ def card_amt_for_boss(df=None, bossname=None, cardname=None):
     return foo
 
 
-def main(full_df):
+def main(full_df:pd.DataFrame) -> dict:
+    """
+    Missing arguments???
+    """
     memoizer = memoizer or dict()
     copy = full_df
     for i, row in full_df.iterrows():
