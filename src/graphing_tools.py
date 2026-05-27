@@ -192,12 +192,12 @@ def graph_over_format(df, split_metric, graph_metric, item_list, format_list):
     for df in metric_dfs:
         x=df['date']['mean']
         y=df[graph_metric]['mean']
-        plt.plot(x, y)
+        plt.plot(x, y, marker='o')
 
     plt.xlabel("Date")
     plt.ylabel(graph_metric)
     plt.title(f"{graph_metric} over time per {split_metric}")
-    plt.legend(item_list, loc=3, fontsize='xx-small')
+    plt.legend(item_list, loc='best', fontsize='xx-small')
     plt.grid(True)
 
     plt.show()
@@ -215,32 +215,37 @@ def graph_card_peformance_for_boss(card, boss, df, formats):
     boss_df = card_count_for_boss(card, boss, df)
     format_dfs = break_df_by_format(boss_df, formats)
 
-    for i, df in enumerate(format_dfs):
-        tmp = df.groupby('cardAMT').describe()
-        format_dfs[i] = tmp
+    # Collect data for each format
+    all_card_amounts = set()
+    format_compositions = []  # List of dicts: {cardAMT: percentage}
 
-    amt_dfs = []
-    ratios=[]
-    for i in range(5):
-        data = []
-        for df in format_dfs:
-            if not df.empty:
-                tmp = df.reset_index()
-                data.append(tmp[tmp['cardAMT']==i])
-                ratios.append(create_ratio_list(df))
+    for format_df in format_dfs:
+        if format_df.empty:
+            continue
 
-        amt_dfs.append(pd.concat(data))
+        # Count records in each cardAMT group
+        composition = {}
+        total_count = len(format_df)
 
-    #TODO add ratio change here
-    for df in amt_dfs:
-        x=df['date']['mean']
-        y=create_ratio_list(df)
-        plt.plot(x, y)
+        # Group by cardAMT and calculate percentages
+        for card_amt, group in format_df.groupby('cardAMT'):
+            count = len(group)
+            composition[card_amt] = (count / total_count) * 100
+            all_card_amounts.add(card_amt)
 
-    plt.xlabel("Date")
-    plt.ylabel("Percentage")
-    plt.title("Build Rep. over Format")
-    plt.legend([i for i in range(5)], loc=3, fontsize='xx-small')
+        format_compositions.append(composition)
+
+    # Plot each card amount as a line
+    for card_amt in sorted(all_card_amounts):
+        percentages = [
+            comp.get(card_amt, 0) for comp in format_compositions
+        ]
+        plt.plot(percentages, marker='o', label=f'{card_amt}')
+
+    plt.xlabel("Format")
+    plt.ylabel("Percentage of Decks (%)")
+    plt.title(f"{card} in {boss} decks")
+    plt.legend(loc='best', fontsize='small')
     plt.grid(True)
     plt.show()
 
