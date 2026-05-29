@@ -4,7 +4,7 @@ from nltk.chunk import ChunkParserI
 from nltk.chunk.util import tree2conlltags, conlltags2tree
 from nltk.tag import UnigramTagger, BigramTagger, ClassifierBasedTagger
 from nltk.corpus import names, ieer, gazetteers
-from tag_util import backoff_tagger
+from .tag_util import backoff_tagger
 
 def conll_tag_chunks(chunk_sents):
 	'''Convert each chunked sentence to list of (tag, chunk_tag) tuples,
