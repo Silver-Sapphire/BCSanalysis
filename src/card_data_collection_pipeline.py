@@ -1,5 +1,6 @@
 
 #card_data_collection_pipeline.py
+from typing import Any
 
 import src.db_operations as db_operations
 from src.helpers import get_page as get
